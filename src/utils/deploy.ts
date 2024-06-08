@@ -24,9 +24,9 @@ export async function checkCommands(commands: Command[]) {
 }
 
 export async function deployCommands(commands: Command[]) {
-  const { BOT_TOKEN: token, CLIENT_ID: clientId, GUILD_ID: guildId } = process.env
+  const { BOT_TOKEN: token, CLIENT_ID: clientId } = process.env
 
-  if (!token || !clientId || !guildId)
+  if (!token || !clientId)
     process.exit(1)
 
   const rest = new REST().setToken(token)
@@ -40,7 +40,7 @@ export async function deployCommands(commands: Command[]) {
     console.log(chalk.cyan('[REST:post]'), commands.length, 'commands')
 
     const data = await rest.put(
-      Routes.applicationGuildCommands(clientId, guildId),
+      Routes.applicationCommands(clientId),
       { body: commands.map(c => c.command.toJSON()) },
     ) as RestCommand[]
 

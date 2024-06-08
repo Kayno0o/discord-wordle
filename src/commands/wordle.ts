@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { ActionRowBuilder, Attachment, AttachmentBuilder, ButtonBuilder, ButtonStyle, type ModalActionRowComponentBuilder, ModalBuilder, SlashCommandBuilder, TextInputBuilder, TextInputStyle } from 'discord.js'
@@ -15,6 +16,9 @@ import { exec } from '../utils/exec'
 const min = 3
 const max = 10
 const maxTry = 6
+
+const platform = os.platform()
+const executable = platform === 'win32' ? 'main.exe' : './main'
 
 const uniqueWords = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/u_ods6.txt'), 'utf-8').toLowerCase().split('\n')
 const words = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/ods6.txt'), 'utf-8').toLowerCase().split('\n')
@@ -69,10 +73,15 @@ export const command: Command = {
     const guess = new ButtonBuilder()
       .setCustomId(`guess|${word.id}|wordle`)
       .setLabel('Deviner')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Success)
+
+    const view = new ButtonBuilder()
+      .setCustomId(`view|${word.id}|wordle`)
+      .setLabel('Revoir les indices')
+      .setStyle(ButtonStyle.Secondary)
 
     const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(guess)
+      .addComponents(guess, view)
 
     await interaction.reply({
       content: `${interaction.user.toString()} a démarré un mot en ${length} lettres !`,
@@ -82,16 +91,17 @@ export const command: Command = {
   handleButton: async (_, interaction) => {
     const [name, id] = interaction.customId.split('|')
 
+    const word = WordRepository.findById(Number(id))
+
+    if (!word) {
+      await interaction.reply({ content: 'Ce mot n\'existe pas', ephemeral: true })
+      return
+    }
+
+    const user = UserRepository.findOneBy({ where: { discord_id: interaction.user.id } })!
+    const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
+
     if (name === 'guess') {
-      const word = WordRepository.findById(Number(id))
-
-      if (!word) {
-        await interaction.reply({ content: 'Ce mot n\'existe pas', ephemeral: true })
-        return
-      }
-
-      const user = UserRepository.findOneBy({ where: { discord_id: interaction.user.id } })!
-      const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
       if (tries.length >= maxTry) {
         await interaction.reply({ content: 'Vous avez déjà perdu...', ephemeral: true })
         return
@@ -118,6 +128,19 @@ export const command: Command = {
       modal.addComponents(firstActionRow)
 
       await interaction.showModal(modal)
+
+      return
+    }
+
+    if (name === 'view') {
+      if (tries.length === 0) {
+        await interaction.reply({ content: 'Vous n\'avez jamais essayé de mot!', ephemeral: true })
+        return
+      }
+
+      const image = exec(`${executable} ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
+      const attachment = new AttachmentBuilder(image, { name: 'mots.png' })
+      await interaction.reply({ ephemeral: true, files: [attachment] })
     }
   },
   handleModal: async (_, interaction) => {
@@ -146,21 +169,19 @@ export const command: Command = {
       const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
 
       if (word.word === guess || tries.length === maxTry) {
-        const noLettersImageBase64 = exec(`main.exe --no-letter ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle' })
-        const noLettersImage = Buffer.from(noLettersImageBase64.toString(), 'base64')
+        const noLettersImage = exec(`${executable} --no-letter ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
         const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })
         await interaction.reply({
-          content: tries.length === maxTry
-            ? `Dommage, ${interaction.user.toString()} a perdu... (${tries.length}/${maxTry})`
-            : `C\'est gagné pour ${interaction.user.toString()} ! (${tries.length}/${maxTry})`,
+          content: word.word === guess
+            ? `C\'est gagné pour ${interaction.user.toString()} ! (${tries.length}/${maxTry})`
+            : `Dommage, ${interaction.user.toString()} a perdu... (${tries.length}/${maxTry})`,
           files: [noLettersAttachment],
         })
         return
       }
 
-      const lettersImageBase64 = exec(`main.exe ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle' })
-      const image = Buffer.from(lettersImageBase64.toString(), 'base64')
-      const attachment = new AttachmentBuilder(image, { name: 'mots.png' })
+      const lettersImage = exec(`${executable} ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
+      const attachment = new AttachmentBuilder(lettersImage, { name: 'mots.png' })
       await interaction.reply({ content: `Mauvaise réponse. (${tries.length}/${maxTry})`, ephemeral: true, files: [attachment] })
     }
   },

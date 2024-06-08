@@ -168,11 +168,11 @@ export const command: Command = {
 
       const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
 
-      if (word.word === guess || tries.length === maxTry) {
+      if (word.word === guess.toLowerCase() || tries.length === maxTry) {
         const noLettersImage = exec(`${executable} --no-letter ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
         const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })
         await interaction.reply({
-          content: word.word === guess
+          content: word.word === guess.toLowerCase()
             ? `C\'est gagné pour ${interaction.user.toString()} ! (${tries.length}/${maxTry})`
             : `Dommage, ${interaction.user.toString()} a perdu... (${tries.length}/${maxTry})`,
           files: [noLettersAttachment],

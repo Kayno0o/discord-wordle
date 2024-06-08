@@ -5,6 +5,7 @@ import { debounce } from 'lodash'
 import chalk from 'chalk'
 import { loadCommands, loadEvents } from '../utils/loader'
 import { checkCommands } from '../utils/deploy'
+import { db } from '../database'
 import type { Command } from './commands'
 import type { DiscordEvent } from './events'
 
@@ -38,7 +39,7 @@ export class CustomClient extends Client<true> {
 
     this.login(process.env.BOT_TOKEN)
 
-    const debounceReload = debounce(async () => await this.loadCommands(), 300)
+    const debounceReload = debounce(() => this.loadCommands(), 300)
 
     const watchPath = path.resolve(process.cwd(), 'src/commands')
     console.log(chalk.cyan('[watch]'), watchPath)
@@ -46,7 +47,6 @@ export class CustomClient extends Client<true> {
       watchPath,
       { recursive: true },
       (event, filename) => {
-        console.log(event, filename)
         if (!filename || !filename.endsWith('.ts'))
           return
 
@@ -57,6 +57,7 @@ export class CustomClient extends Client<true> {
     process.on('SIGINT', () => {
       console.log(chalk.red('[kill]'), 'watchers')
       this.watcher?.close()
+      db.close()
 
       process.exit(0)
     })

@@ -1,10 +1,11 @@
-import type { CommandInteraction, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder } from 'discord.js'
+import type { ButtonInteraction, CommandInteraction, ModalSubmitInteraction, SlashCommandBuilder, SlashCommandOptionsOnlyBuilder } from 'discord.js'
 import type { CustomClient } from './client'
 
 export interface Command {
-  command: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder
+  command: SlashCommandBuilder
   handle?: (client: CustomClient, interaction: CommandInteraction) => Promise<void> | void
   handleModal?: (client: CustomClient, interaction: ModalSubmitInteraction) => Promise<void> | void
+  handleButton?: (client: CustomClient, interaction: ButtonInteraction) => Promise<void> | void
 }
 
 export interface RestCommand {

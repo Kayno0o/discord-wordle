@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { REST, Routes } from 'discord.js'
 import _ from 'lodash'
+import chalk from 'chalk'
 import type { Command, RestCommand } from '../types/commands'
 
 let lastCall = 0
@@ -36,16 +37,16 @@ export async function deployCommands(commands: Command[]) {
   lastCall = Date.now()
 
   try {
-    console.log(`Started refreshing ${commands.length} application (/) commands.`)
+    console.log(chalk.cyan('[REST:post]'), commands.length, 'commands')
 
     const data = await rest.put(
       Routes.applicationGuildCommands(clientId, guildId),
       { body: commands.map(c => c.command.toJSON()) },
     ) as RestCommand[]
 
-    console.log(`Successfully reloaded ${data.length} application (/) commands.`)
+    console.log(chalk.green('[REST:success]'), 'reloaded', data.length, 'commands')
   }
   catch (error) {
-    console.error(error)
+    console.error(chalk.red('[REST:error]'), error)
   }
 }

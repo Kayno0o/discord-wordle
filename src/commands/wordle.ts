@@ -1,20 +1,167 @@
-import { SlashCommandBuilder } from 'discord.js'
+import fs from 'node:fs'
+import path from 'node:path'
+import { Buffer } from 'node:buffer'
+import { ActionRowBuilder, Attachment, AttachmentBuilder, ButtonBuilder, ButtonStyle, type ModalActionRowComponentBuilder, ModalBuilder, SlashCommandBuilder, TextInputBuilder, TextInputStyle } from 'discord.js'
+import { range } from 'lodash'
+import { formatDate, getRandomElement } from '@kaynooo/js-utils'
 import type { Command } from '../types/commands'
+import { db } from '../database'
+import type { DBWord } from '../types/entity'
+import { UserRepository } from '../database/repository/UserRepository'
+import { WordRepository } from '../database/repository/WordRepository'
+import { UserTryRepository } from '../database/repository/UserTryRepository'
+import { exec } from '../utils/exec'
 
 const min = 3
 const max = 10
+const maxTry = 6
+
+const uniqueWords = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/u_pli07.txt'), 'utf-8').toLowerCase().split('\n')
+const words = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/pli07.txt'), 'utf-8').toLowerCase().split('\n')
+
+export function getWordle(length: number): DBWord {
+  const day = formatDate(new Date(), 'input')
+
+  const word = WordRepository.findOneBy({ where: { day, length } })
+
+  if (word === null) {
+    const word = getRandomElement(uniqueWords.filter(word => word.length === length))
+    db.run('INSERT INTO word (word, day, length) VALUES (?, ?, ?)', [word, day, length])
+    return getWordle(length)
+  }
+
+  return word
+}
+
+export function wordExists(word: string): boolean {
+  return words.includes(word.toLowerCase())
+}
 
 export const command: Command = {
-  command: new SlashCommandBuilder()
-    .setName('wordle')
-    .setDescription('Creates a wordle !')
-    .addIntegerOption(builder =>
-      builder
-        .setName('length')
-        .setDescription('Word length')
-        .addChoices(Array(max - min).map((_, v) => ({ name: String(v + min), value: v + min }))),
-    ),
-  handle: async (client, interaction) => {
-    await interaction.reply('P0ng !')
+  command: (() => {
+    const builder = new SlashCommandBuilder()
+      .setName('wordle')
+      .setDescription('Starts a wordle !')
+
+    builder
+      .addIntegerOption(builder =>
+        builder
+          .setName('length')
+          .setDescription('Word length')
+          .addChoices(range((max - min) + 1).map((_, v) => ({ name: String(v + min), value: v + min })))
+          .setRequired(true),
+      )
+
+    return builder
+  })(),
+  handle: async (_, interaction) => {
+    const lengthOption = interaction.options.get('length')
+
+    if (!lengthOption || typeof lengthOption.value !== 'number') {
+      await interaction.reply({ content: 'No length provided', ephemeral: true })
+      return
+    }
+
+    const length = lengthOption.value
+
+    const word = getWordle(length)
+
+    const guess = new ButtonBuilder()
+      .setCustomId(`guess|${word.id}|wordle`)
+      .setLabel('Deviner')
+      .setStyle(ButtonStyle.Primary)
+
+    const row = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(guess)
+
+    await interaction.reply({
+      content: `${interaction.user.toString()} a démarré un mot en ${length} lettres !`,
+      components: [row],
+    })
+  },
+  handleButton: async (_, interaction) => {
+    const [name, id] = interaction.customId.split('|')
+
+    if (name === 'guess') {
+      const word = WordRepository.findById(Number(id))
+
+      if (!word) {
+        await interaction.reply({ content: 'Ce mot n\'existe pas', ephemeral: true })
+        return
+      }
+
+      const user = UserRepository.findOneBy({ where: { discord_id: interaction.user.id } })!
+      const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
+      if (tries.length >= maxTry) {
+        await interaction.reply({ content: 'Vous avez déjà perdu...', ephemeral: true })
+        return
+      }
+
+      if (tries.find(t => t.guess === word.word)) {
+        await interaction.reply({ content: 'Vous avez déjà gagné !', ephemeral: true })
+        return
+      }
+
+      const modal = new ModalBuilder()
+        .setCustomId(`guess|${id}|wordle`)
+        .setTitle(`Devinez le mot du jour en ${word?.length} lettres`)
+
+      const guessInput = new TextInputBuilder()
+        .setCustomId('guessInput')
+        .setLabel('Mot :')
+        .setStyle(TextInputStyle.Short)
+        .setMinLength(word.length)
+        .setMaxLength(word.length)
+        .setRequired(true)
+
+      const firstActionRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(guessInput)
+      modal.addComponents(firstActionRow)
+
+      await interaction.showModal(modal)
+    }
+  },
+  handleModal: async (_, interaction) => {
+    const [name, id] = interaction.customId.split('|')
+    if (name === 'guess') {
+      const guess = interaction.fields.getField('guessInput').value
+      if (!wordExists(guess)) {
+        await interaction.reply({ content: 'Ce mot n\'existe pas dans le dictionnaire', ephemeral: true })
+        return
+      }
+
+      const word = WordRepository.findById(Number(id))
+      const user = UserRepository.findOneBy({ where: { discord_id: interaction.user.id } })!
+
+      if (!word) {
+        await interaction.reply({ content: 'Ce mot n\'existe pas', ephemeral: true })
+        return
+      }
+
+      UserTryRepository.create({
+        user_id: user.id,
+        word_id: Number(id),
+        guess,
+      })
+
+      const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
+
+      if (word.word === guess || tries.length === maxTry) {
+        const noLettersImageBase64 = exec(`main.exe --no-letter ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle' })
+        const noLettersImage = Buffer.from(noLettersImageBase64.toString(), 'base64')
+        const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })
+        await interaction.reply({
+          content: tries.length === maxTry
+            ? `Dommage, ${interaction.user.toString()} a perdu... (${tries.length}/${maxTry})`
+            : `C\'est gagné pour ${interaction.user.toString()} ! (${tries.length}/${maxTry})`,
+          files: [noLettersAttachment],
+        })
+        return
+      }
+
+      const lettersImageBase64 = exec(`main.exe ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle' })
+      const image = Buffer.from(lettersImageBase64.toString(), 'base64')
+      const attachment = new AttachmentBuilder(image, { name: 'mots.png' })
+      await interaction.reply({ content: `Mauvaise réponse. (${tries.length}/${maxTry})`, ephemeral: true, files: [attachment] })
+    }
   },
 }

@@ -2,9 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { ClientEvents } from 'discord.js'
 import chalk from 'chalk'
+import { notEmpty } from '@kaynooo/js-utils'
 import type { Command } from '../types/commands'
 import type { DiscordEvent } from '../types/events'
-import { notEmpty } from './arrayUtils'
 
 function deleteModule(moduleName: string) {
   const solvedName = require.resolve(moduleName)
@@ -29,8 +29,10 @@ export async function loadCommands() {
   const commandsPath = path.resolve(process.cwd(), 'src/commands')
   const files = loadFiles(commandsPath, 'ts')
 
-  console.log(chalk.cyan('[load]'), 'commands')
-  files.map(filepath => console.log(' -', filepath.replace(commandsPath, '')))
+  console.log(chalk.cyan('[load:commands]'))
+  for (const file of files) {
+    console.log(` - /${path.basename(file).split('.')[0]}`)
+  }
 
   return (await Promise.all(files.map(filepath => loadImport<Command>(filepath, 'command')))).filter(notEmpty)
 }
@@ -38,6 +40,11 @@ export async function loadCommands() {
 export async function loadEvents() {
   const eventsPath = path.resolve(process.cwd(), 'src/events')
   const files = loadFiles(eventsPath, 'ts')
+
+  console.log(chalk.cyan('[load:events]'))
+  for (const file of files) {
+    console.log(` - ${path.basename(file).split('.')[0]}`)
+  }
 
   return (await Promise.all(files.map(filepath => loadImport<DiscordEvent<keyof ClientEvents>>(filepath, 'event')))).filter(notEmpty)
 }

@@ -24,20 +24,16 @@ type PaletteItem struct {
 type Palette map[string]PaletteItem
 
 var (
-	width    = 30.0
-	gap      = width / 12.5
-	round    = width / 10
-	noLetter = false
-)
-
-func stringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
+	width        = 30.0
+	gap          = width / 12.5
+	round        = width / 10
+	noLetter     = false
+	colorPalette = Palette{
+		"no":    {Text: "#d4c8bb", Rect: "#191818"},
+		"place": {Text: "#191818", Rect: "#d4c8bb"},
+		"ok":    {Text: "#d4c8bb", Rect: "#7b60a6"},
 	}
-	return false
-}
+)
 
 func getFilename(word string, guess string) string {
 	if noLetter {
@@ -67,31 +63,43 @@ func generateImage(word string, guess string) {
 		log.Fatal(err)
 	}
 
-	for i, letter := range guess {
-		// ok: {text, rect}, place: {text, rect}, no: {text, rect}
-		colorPalette := Palette{
-			"no":    {Text: "#d4c8bb", Rect: "#191818"},
-			"place": {Text: "#191818", Rect: "#d4c8bb"},
-			"ok":    {Text: "#d4c8bb", Rect: "#7b60a6"},
+	wordRunes := []rune(word)
+	guessRunes := []rune(guess)
+	colorTypes := make([]string, len(guessRunes))
+	wordLetterCounts := make(map[rune]int)
+
+	for _, letter := range wordRunes {
+		wordLetterCounts[letter]++
+	}
+
+	for i, letter := range guessRunes {
+		if i < len(wordRunes) && letter == wordRunes[i] {
+			colorTypes[i] = "ok"
+			wordLetterCounts[letter]--
 		}
+	}
 
-		colorType := "no"
-
-		if i < len(word) && letter == rune(word[i]) {
-			colorType = "ok"
-		} else if stringInSlice(string(letter), strings.Split(word, "")) {
-			colorType = "place"
+	for i, letter := range guessRunes {
+		if colorTypes[i] != "ok" {
+			if count, found := wordLetterCounts[letter]; found && count > 0 {
+				colorTypes[i] = "place"
+				wordLetterCounts[letter]--
+			} else {
+				colorTypes[i] = "no"
+			}
 		}
+	}
 
+	for i, letter := range guessRunes {
 		x := float64(i) * (width + gap)
 		y := 0.0
 
-		dc.SetHexColor(colorPalette[colorType].Rect)
+		dc.SetHexColor(colorPalette[colorTypes[i]].Rect)
 		dc.DrawRoundedRectangle(x, y, width, width, round)
 		dc.Fill()
 
 		if !noLetter {
-			dc.SetHexColor(colorPalette[colorType].Text)
+			dc.SetHexColor(colorPalette[colorTypes[i]].Text)
 			dc.DrawStringAnchored(strings.ToUpper(string(letter)), x+width/2, y+width/2, 0.5, 0.5)
 		}
 	}

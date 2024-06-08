@@ -140,13 +140,13 @@ export const command: Command = {
 
       const image = exec(`${executable} ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
       const attachment = new AttachmentBuilder(image, { name: 'mots.png' })
-      await interaction.reply({ ephemeral: true, files: [attachment] })
+      await interaction.reply({ content: (tries.find(t => t.guess === word.word) || tries.length === maxTry) ? `Mot : ${word.word}` : '', ephemeral: true, files: [attachment] })
     }
   },
   handleModal: async (_, interaction) => {
     const [name, id] = interaction.customId.split('|')
     if (name === 'guess') {
-      const guess = interaction.fields.getField('guessInput').value
+      const guess = interaction.fields.getField('guessInput').value.toLowerCase()
       if (!wordExists(guess)) {
         await interaction.reply({ content: 'Ce mot n\'existe pas dans le dictionnaire', ephemeral: true })
         return
@@ -168,11 +168,11 @@ export const command: Command = {
 
       const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
 
-      if (word.word === guess.toLowerCase() || tries.length === maxTry) {
+      if (word.word === guess || tries.length === maxTry) {
         const noLettersImage = exec(`${executable} --no-letter ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
         const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })
         await interaction.reply({
-          content: word.word === guess.toLowerCase()
+          content: word.word === guess
             ? `C\'est gagné pour ${interaction.user.toString()} ! (${tries.length}/${maxTry})`
             : `Dommage, ${interaction.user.toString()} a perdu... (${tries.length}/${maxTry})`,
           files: [noLettersAttachment],

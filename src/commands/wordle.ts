@@ -16,8 +16,8 @@ const min = 3
 const max = 10
 const maxTry = 6
 
-const uniqueWords = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/u_pli07.txt'), 'utf-8').toLowerCase().split('\n')
-const words = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/pli07.txt'), 'utf-8').toLowerCase().split('\n')
+const uniqueWords = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/u_ods6.txt'), 'utf-8').toLowerCase().split('\n')
+const words = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/ods6.txt'), 'utf-8').toLowerCase().split('\n')
 
 export function getWordle(length: number): DBWord {
   const day = formatDate(new Date(), 'input')

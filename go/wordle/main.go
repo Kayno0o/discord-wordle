@@ -160,6 +160,10 @@ func inArray(needle string, haystack []string) int {
 func main() {
 	args := os.Args[1:]
 
+	for i, arg := range args {
+		args[i] = strings.ToLower(arg)
+	}
+
 	if index := inArray("--no-letter", args); index > -1 {
 		args = append(args[:index], args[index+1:]...)
 		noLetter = true

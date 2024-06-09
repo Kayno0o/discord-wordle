@@ -140,7 +140,7 @@ export const command: Command = {
 
       const image = exec(`${executable} ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
       const attachment = new AttachmentBuilder(image, { name: 'mots.png' })
-      await interaction.reply({ content: (tries.find(t => t.guess === word.word) || tries.length === maxTry) ? `Mot : ${word.word}` : '', ephemeral: true, files: [attachment] })
+      await interaction.reply({ ephemeral: true, files: [attachment] })
       return
     }
 

@@ -14,4 +14,6 @@ clean:
 	rm -rf node_modules
 	rm src/commands/commands.json
 
-deploy: pull clean install start
+deploy: pull install start
+
+deploy-clean: pull clean install start

@@ -70,22 +70,22 @@ export const command: Command = {
 
     const word = getWordle(length)
 
-    const guess = new ButtonBuilder()
+    const guessButton = new ButtonBuilder()
       .setCustomId(`guess|${word.id}|wordle`)
       .setLabel('Deviner')
       .setStyle(ButtonStyle.Success)
 
-    const view = new ButtonBuilder()
+    const viewButton = new ButtonBuilder()
       .setCustomId(`view|${word.id}|wordle`)
       .setLabel('Revoir les indices')
       .setStyle(ButtonStyle.Secondary)
 
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(guess, view)
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(guessButton, viewButton)
 
     await interaction.reply({
       content: `${interaction.user.toString()} a démarré un mot en ${length} lettres !`,
-      components: [row],
+      components: [actionRow],
     })
   },
   handleButton: async (_, interaction) => {
@@ -184,13 +184,18 @@ export const command: Command = {
           .setLabel('Deviner')
           .setStyle(ButtonStyle.Success)
 
+        const viewButton = new ButtonBuilder()
+          .setCustomId(`view|${word.id}|wordle`)
+          .setLabel('Revoir les indices')
+          .setStyle(ButtonStyle.Secondary)
+
         const resultButton = new ButtonBuilder()
           .setCustomId(`result|${word.id}|wordle`)
           .setLabel('Voir le mot')
-          .setStyle(ButtonStyle.Success)
+          .setStyle(ButtonStyle.Primary)
 
-        const row = new ActionRowBuilder<ButtonBuilder>()
-          .addComponents(guessButton, resultButton)
+        const actionRow = new ActionRowBuilder<ButtonBuilder>()
+          .addComponents(guessButton, viewButton, resultButton)
 
         const noLettersImage = exec(`${executable} --no-letter ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
         const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })
@@ -199,7 +204,7 @@ export const command: Command = {
             ? `C\'est gagné pour ${interaction.user.toString()} ! (${tries.length}/${maxTry})`
             : `Dommage, ${interaction.user.toString()} a perdu... (${tries.length}/${maxTry})`,
           files: [noLettersAttachment],
-          components: [row],
+          components: [actionRow],
         })
         return
       }
@@ -209,12 +214,12 @@ export const command: Command = {
         .setLabel('Continuer')
         .setStyle(ButtonStyle.Success)
 
-      const row = new ActionRowBuilder<ButtonBuilder>()
+      const actionRow = new ActionRowBuilder<ButtonBuilder>()
         .addComponents(guessButton)
 
       const lettersImage = exec(`${executable} ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
       const attachment = new AttachmentBuilder(lettersImage, { name: 'mots.png' })
-      await interaction.reply({ content: `Mauvaise réponse. (${tries.length}/${maxTry})`, ephemeral: true, files: [attachment], components: [row] })
+      await interaction.reply({ content: `Mauvaise réponse. (${tries.length}/${maxTry})`, ephemeral: true, files: [attachment], components: [actionRow] })
     }
   },
 }

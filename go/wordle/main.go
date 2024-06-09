@@ -177,21 +177,22 @@ func main() {
 		noLetter = true
 	}
 
-	if len(args)%2 != 0 {
-		log.Fatal("Please provide an even number of words.")
+	if len(args) < 2 {
+		log.Fatal("Please provide at least one word, and one guess.")
 	}
 
-	for i := 0; i < len(args); i += 2 {
-		word := args[i]
-		guess := args[i+1]
+	word := args[0]
+	args = args[1:]
+
+	for i := 0; i < len(args); i++ {
+		guess := args[i]
 		generateImage(word, guess)
 	}
 
 	imageFiles := []string{}
 
-	for i := 0; i < len(args); i += 2 {
-		word := args[i]
-		guess := args[i+1]
+	for i := 0; i < len(args); i++ {
+		guess := args[i]
 		filename := getFilename(word, guess)
 		imageFiles = append(imageFiles, filename)
 	}

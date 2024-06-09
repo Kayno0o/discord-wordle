@@ -169,7 +169,7 @@ export const command: Command = {
       const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
 
       if (word.word === guess || tries.length === maxTry) {
-        const noLettersImage = exec(`${executable} --no-letter ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
+        const noLettersImage = exec(`${executable} --no-letter ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
         const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })
         await interaction.reply({
           content: word.word === guess
@@ -180,7 +180,7 @@ export const command: Command = {
         return
       }
 
-      const lettersImage = exec(`${executable} ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
+      const lettersImage = exec(`${executable} ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
       const attachment = new AttachmentBuilder(lettersImage, { name: 'mots.png' })
       await interaction.reply({ content: `Mauvaise réponse. (${tries.length}/${maxTry})`, ephemeral: true, files: [attachment] })
     }

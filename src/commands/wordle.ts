@@ -169,6 +169,14 @@ export const command: Command = {
       const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
 
       if (word.word === guess || tries.length === maxTry) {
+        const guessButton = new ButtonBuilder()
+          .setCustomId(`guess|${word.id}|wordle`)
+          .setLabel('Deviner')
+          .setStyle(ButtonStyle.Success)
+
+        const row = new ActionRowBuilder<ButtonBuilder>()
+          .addComponents(guessButton)
+
         const noLettersImage = exec(`${executable} --no-letter ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
         const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })
         await interaction.reply({
@@ -176,6 +184,7 @@ export const command: Command = {
             ? `C\'est gagné pour ${interaction.user.toString()} ! (${tries.length}/${maxTry})`
             : `Dommage, ${interaction.user.toString()} a perdu... (${tries.length}/${maxTry})`,
           files: [noLettersAttachment],
+          components: [row],
         })
         return
       }

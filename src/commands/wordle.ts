@@ -24,7 +24,7 @@ const uniqueWords = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionn
 const words = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/ods6.txt'), 'utf-8').toLowerCase().split('\n')
 
 export function getWordle(length: number): DBWord {
-  const day = formatDate(new Date(), 'input')
+  const day = formatDate(new Date(), 'input', { utc: true })
 
   const word = WordRepository.findOneBy({ where: { day, length } })
 

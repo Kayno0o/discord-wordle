@@ -103,12 +103,12 @@ export const command: Command = {
 
     if (name === 'guess') {
       if (tries.length >= maxTry) {
-        await interaction.reply({ content: 'Vous avez déjà perdu...', ephemeral: true })
+        await interaction.reply({ content: 'Tu as déjà perdu...', ephemeral: true })
         return
       }
 
       if (tries.find(t => t.guess === word.word)) {
-        await interaction.reply({ content: 'Vous avez déjà gagné !', ephemeral: true })
+        await interaction.reply({ content: 'Tu as déjà gagné !', ephemeral: true })
         return
       }
 
@@ -134,13 +134,23 @@ export const command: Command = {
 
     if (name === 'view') {
       if (tries.length === 0) {
-        await interaction.reply({ content: 'Vous n\'avez jamais essayé de mot!', ephemeral: true })
+        await interaction.reply({ content: 'Tu n\'as jamais essayé de mot !', ephemeral: true })
         return
       }
 
-      const image = exec(`${executable} ${tries.map(t => `${word.word} ${t.guess}`).join(' ')}`, { dir: 'go/wordle', isBase64: true })
+      const image = exec(`${executable} ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
       const attachment = new AttachmentBuilder(image, { name: 'mots.png' })
       await interaction.reply({ content: (tries.find(t => t.guess === word.word) || tries.length === maxTry) ? `Mot : ${word.word}` : '', ephemeral: true, files: [attachment] })
+      return
+    }
+
+    if (name === 'result') {
+      if (!tries.find(t => t.guess === word.word) && tries.length !== maxTry) {
+        await interaction.reply({ content: 'Tu ne peux pas voir le mot, petit filou !', ephemeral: true })
+        return
+      }
+
+      await interaction.reply({ content: `Mot : ${word.word}`, ephemeral: true })
     }
   },
   handleModal: async (_, interaction) => {
@@ -148,7 +158,7 @@ export const command: Command = {
     if (name === 'guess') {
       const guess = interaction.fields.getField('guessInput').value.toLowerCase()
       if (!wordExists(guess)) {
-        await interaction.reply({ content: 'Ce mot n\'existe pas dans le dictionnaire', ephemeral: true })
+        await interaction.reply({ content: 'Ce mot n\'existe pas dans le dictionnaire...', ephemeral: true })
         return
       }
 
@@ -156,7 +166,7 @@ export const command: Command = {
       const user = UserRepository.findOneBy({ where: { discord_id: interaction.user.id } })!
 
       if (!word) {
-        await interaction.reply({ content: 'Ce mot n\'existe pas', ephemeral: true })
+        await interaction.reply({ content: 'Ce wordle n\'existe pas...', ephemeral: true })
         return
       }
 
@@ -174,8 +184,13 @@ export const command: Command = {
           .setLabel('Deviner')
           .setStyle(ButtonStyle.Success)
 
+        const resultButton = new ButtonBuilder()
+          .setCustomId(`result|${word.id}|wordle`)
+          .setLabel('Voir le mot')
+          .setStyle(ButtonStyle.Success)
+
         const row = new ActionRowBuilder<ButtonBuilder>()
-          .addComponents(guessButton)
+          .addComponents(guessButton, resultButton)
 
         const noLettersImage = exec(`${executable} --no-letter ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
         const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })

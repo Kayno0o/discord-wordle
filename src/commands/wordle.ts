@@ -45,14 +45,14 @@ export const command: Command = {
   command: (() => {
     const builder = new SlashCommandBuilder()
       .setName('wordle')
-      .setDescription('Starts a wordle !')
+      .setDescription('Démarre un Wordle !')
 
     builder
       .addIntegerOption(builder =>
         builder
           .setName('length')
-          .setDescription('Word length')
-          .addChoices(range((max - min) + 1).map((_, v) => ({ name: String(v + min), value: v + min })))
+          .setDescription('Nombre de lettres')
+          .addChoices(range((max - min) + 1).map((_, v) => ({ name: `${v + min} lettres`, value: v + min })))
           .setRequired(true),
       )
 
@@ -62,7 +62,7 @@ export const command: Command = {
     const lengthOption = interaction.options.get('length')
 
     if (!lengthOption || typeof lengthOption.value !== 'number') {
-      await interaction.reply({ content: 'No length provided', ephemeral: true })
+      await interaction.reply({ content: 'Aucune longueur spécifiée', ephemeral: true })
       return
     }
 
@@ -180,9 +180,17 @@ export const command: Command = {
         return
       }
 
+      const guessButton = new ButtonBuilder()
+        .setCustomId(`guess|${word.id}|wordle`)
+        .setLabel('Continuer')
+        .setStyle(ButtonStyle.Success)
+
+      const row = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(guessButton)
+
       const lettersImage = exec(`${executable} ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
       const attachment = new AttachmentBuilder(lettersImage, { name: 'mots.png' })
-      await interaction.reply({ content: `Mauvaise réponse. (${tries.length}/${maxTry})`, ephemeral: true, files: [attachment] })
+      await interaction.reply({ content: `Mauvaise réponse. (${tries.length}/${maxTry})`, ephemeral: true, files: [attachment], components: [row] })
     }
   },
 }

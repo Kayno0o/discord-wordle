@@ -28,7 +28,7 @@ const dictionnaries: Record<WordDifficulty, string> = {
 
 const difficultyTranslations: Record<WordDifficulty, string> = {
   easy: 'Facile',
-  normal: 'Normale',
+  normal: 'Normal',
   hard: 'Difficile',
 }
 
@@ -111,7 +111,7 @@ export default new Command({
       .addComponents([guessButton, viewButton])
 
     await interaction.reply({
-      content: `${interaction.user.toString()} a démarré un mot ${difficultyTranslations[word.difficulty]} de ${length} lettres !`,
+      content: `${interaction.user.toString()} a démarré un mot ${difficultyTranslations[word.difficulty].toLocaleLowerCase()} de ${length} lettres !`,
       components: [actionRow],
     })
   },

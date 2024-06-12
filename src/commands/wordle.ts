@@ -213,10 +213,11 @@ export default new Command({
 
         const noLettersImage = exec(`${executable} --no-letter ${word.word} ${tries.map(t => t.guess).join(' ')}`, { dir: 'go/wordle', isBase64: true })
         const noLettersAttachment = new AttachmentBuilder(noLettersImage, { name: 'indices.png' })
+        const difficulty = difficultyTranslations[word.difficulty].toLocaleLowerCase()
         await interaction.reply({
           content: word.word === guess
-            ? `C\'est gagné pour ${interaction.user.toString()} ! (${tries.length}/${maxTry})`
-            : `Dommage, ${interaction.user.toString()} a perdu... (${tries.length}/${maxTry})`,
+            ? `${interaction.user.toString()} viens de trouver un mot ${difficulty} de ${word.length} lettres en ${tries.length}/${maxTry} essais.`
+            : `${interaction.user.toString()} vient de perdre le mot ${difficulty} de ${word.length} lettres après ${tries.length}/${maxTry} essais.`,
           files: [noLettersAttachment],
           components: [actionRow],
         })

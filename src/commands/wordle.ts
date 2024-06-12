@@ -37,7 +37,7 @@ export function getWordle(length: number, difficulty: WordDifficulty = 'normal')
 
   const day = formatDate(new Date(), 'input', { utc: true })
 
-  const word = WordRepository.findOneBy({ where: { day, length } })
+  const word = WordRepository.findOneBy({ where: { day, length, difficulty } })
 
   if (word === null) {
     const word = getRandomElement(uniqueWords.filter(word => word.trim().length === length))

@@ -1,5 +1,5 @@
-import { UserRepository } from '../database/repository/UserRepository'
-import type { DiscordEvent } from '../types/events'
+import { UserRepository } from '~/database/entity'
+import type { DiscordEvent } from '~/types/events'
 
 export const event: DiscordEvent<'interactionCreate'> = {
   name: 'interactionCreate',

@@ -1,7 +1,7 @@
 import { GatewayIntentBits } from 'discord.js'
 import { config as dotenv } from 'dotenv'
-import { CustomClient } from './src/types/client'
-import { initDB } from './src/database'
+import { CustomClient } from '~/types/client'
+import { initDB } from '~/database'
 
 dotenv()
 
@@ -9,6 +9,6 @@ const client = new CustomClient({
   intents: [GatewayIntentBits.GuildMessages],
 })
 
-initDB()
+await initDB()
 
 await client.start()

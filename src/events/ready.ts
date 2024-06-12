@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import type { DiscordEvent } from '../types/events'
+import type { DiscordEvent } from '~/types/events'
 
 export const event: DiscordEvent<'ready'> = {
   name: 'ready',

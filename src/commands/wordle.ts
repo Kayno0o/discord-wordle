@@ -1,17 +1,13 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { Buffer } from 'node:buffer'
-import { ActionRowBuilder, Attachment, AttachmentBuilder, ButtonBuilder, ButtonStyle, type ModalActionRowComponentBuilder, ModalBuilder, SlashCommandBuilder, TextInputBuilder, TextInputStyle } from 'discord.js'
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, type ModalActionRowComponentBuilder, ModalBuilder, type SlashCommandBuilder, TextInputBuilder, TextInputStyle } from 'discord.js'
 import { range } from 'lodash'
 import { formatDate, getRandomElement } from '@kaynooo/js-utils'
-import type { Command } from '../types/commands'
-import { db } from '../database'
-import type { DBWord } from '../types/entity'
-import { UserRepository } from '../database/repository/UserRepository'
-import { WordRepository } from '../database/repository/WordRepository'
-import { UserTryRepository } from '../database/repository/UserTryRepository'
-import { exec } from '../utils/exec'
+import { type DBWord, UserRepository, UserTryRepository, WordRepository } from '~/database/entity'
+import { exec } from '~/utils/exec'
+import { button } from '~/utils/discord'
+import { Command } from '~/types/commands'
 
 const min = 3
 const max = 10
@@ -20,68 +16,101 @@ const maxTry = 6
 const platform = os.platform()
 const executable = platform === 'win32' ? 'main.exe' : './main'
 
-const uniqueWords = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/u_ods6.txt'), 'utf-8').toLowerCase().split('\n')
-const words = fs.readFileSync(path.resolve(process.cwd(), 'assets/dictionnary/ods6.txt'), 'utf-8').toLowerCase().split('\n')
+const dictionnariesDir = path.resolve(process.cwd(), 'assets/dictionnary')
 
-export function getWordle(length: number): DBWord {
+const words = fs.readFileSync(path.resolve(dictionnariesDir, 'merge.txt'), 'utf-8').split('\n')
+
+type Difficulty = 'easy' | 'normal' | 'hard'
+
+const dictionnaries: Record<Difficulty, string> = {
+  easy: 'u_liste_francais.txt',
+  normal: 'u_pli07.txt',
+  hard: 'u_ods6.txt',
+}
+
+const difficultyTranslations: Record<Difficulty, string> = {
+  easy: 'Facile',
+  normal: 'Normale',
+  hard: 'Difficile',
+}
+
+export function getWordle(length: number, difficulty: Difficulty = 'normal'): DBWord {
+  const uniqueWords = fs.readFileSync(path.resolve(dictionnariesDir, dictionnaries[difficulty]), 'utf-8').split('\n')
+
   const day = formatDate(new Date(), 'input', { utc: true })
 
   const word = WordRepository.findOneBy({ where: { day, length } })
 
   if (word === null) {
-    const word = getRandomElement(uniqueWords.filter(word => word.length === length))
-    db.run('INSERT INTO word (word, day, length) VALUES (?, ?, ?)', [word, day, length])
-    return getWordle(length)
+    const word = getRandomElement(uniqueWords.filter(word => word.trim().length === length))
+    return WordRepository.create({ word, day, length, difficulty })
   }
 
   return word
 }
 
-export function wordExists(word: string): boolean {
-  return words.includes(word.toLowerCase())
+function createWordleModal(word: DBWord) {
+  const modal = new ModalBuilder()
+    .setCustomId(`guess|${word.id}|wordle`)
+    .setTitle(`Devinez le mot du jour en ${word?.length} lettres`)
+
+  const guessInput = new TextInputBuilder()
+    .setCustomId('guessInput')
+    .setLabel('Mot :')
+    .setStyle(TextInputStyle.Short)
+    .setMinLength(word.length)
+    .setMaxLength(word.length)
+    .setRequired(true)
+  const firstActionRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(guessInput)
+
+  modal.addComponents(firstActionRow)
+
+  return modal
 }
 
-export const command: Command = {
-  command: (() => {
-    const builder = new SlashCommandBuilder()
-      .setName('wordle')
-      .setDescription('Démarre un Wordle !')
-
-    builder
-      .addIntegerOption(builder =>
-        builder
-          .setName('length')
-          .setDescription('Nombre de lettres')
-          .addChoices(range((max - min) + 1).map((_, v) => ({ name: `${v + min} lettres`, value: v + min })))
-          .setRequired(true),
-      )
-
-    return builder
-  })(),
+export default new Command({
+  command: {
+    name: 'wordle',
+    description: 'Démarre un Wordle !',
+  },
+  setup: (builder: SlashCommandBuilder) => builder
+    .addIntegerOption(builder => builder
+      .setName('length')
+      .setDescription('Nombre de lettres')
+      .addChoices(range((max - min) + 1).map((_, v) => ({ name: `${v + min} lettres`, value: v + min })))
+      .setRequired(true),
+    )
+    .addStringOption(builder => builder
+      .setName('difficulty')
+      .setDescription('Difficulté')
+      .addChoices(Object.keys(dictionnaries).map((d: string) => ({ name: difficultyTranslations[d as Difficulty], value: d }))),
+    ),
   handle: async (_, interaction) => {
     const lengthOption = interaction.options.get('length')
-
     if (!lengthOption || typeof lengthOption.value !== 'number') {
       await interaction.reply({ content: 'Aucune longueur spécifiée', ephemeral: true })
       return
     }
 
+    const difficulty: Difficulty = (interaction.options.get('difficulty')?.value as Difficulty | undefined) ?? 'normal'
+
     const length = lengthOption.value
+    const word = getWordle(length, difficulty)
 
-    const word = getWordle(length)
+    const guessButton = button({
+      id: ['guess', word.id, 'wordle'],
+      label: 'Deviner',
+      style: ButtonStyle.Success,
+    })
 
-    const guessButton = new ButtonBuilder()
-      .setCustomId(`guess|${word.id}|wordle`)
-      .setLabel('Deviner')
-      .setStyle(ButtonStyle.Success)
-
-    const viewButton = new ButtonBuilder()
-      .setCustomId(`view|${word.id}|wordle`)
-      .setLabel('Revoir les indices')
-      .setStyle(ButtonStyle.Secondary)
+    const viewButton = button({
+      id: ['view', word.id, 'wordle'],
+      label: 'Revoir les indices',
+      style: ButtonStyle.Secondary,
+    })
 
     const actionRow = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(guessButton, viewButton)
+      .addComponents([guessButton, viewButton])
 
     await interaction.reply({
       content: `${interaction.user.toString()} a démarré un mot en ${length} lettres !`,
@@ -94,7 +123,7 @@ export const command: Command = {
     const word = WordRepository.findById(Number(id))
 
     if (!word) {
-      await interaction.reply({ content: 'Ce mot n\'existe pas', ephemeral: true })
+      await interaction.reply({ content: 'Une erreur est survenue : ce mot n\'existe pas', ephemeral: true })
       return
     }
 
@@ -102,30 +131,17 @@ export const command: Command = {
     const tries = UserTryRepository.findAllBy({ where: { user_id: user.id, word_id: word.id } })
 
     if (name === 'guess') {
-      if (tries.length >= maxTry) {
-        await interaction.reply({ content: 'Tu as déjà perdu...', ephemeral: true })
-        return
-      }
-
       if (tries.find(t => t.guess === word.word)) {
         await interaction.reply({ content: 'Tu as déjà gagné !', ephemeral: true })
         return
       }
 
-      const modal = new ModalBuilder()
-        .setCustomId(`guess|${id}|wordle`)
-        .setTitle(`Devinez le mot du jour en ${word?.length} lettres`)
+      if (tries.length >= maxTry) {
+        await interaction.reply({ content: 'Tu as déjà perdu...', ephemeral: true })
+        return
+      }
 
-      const guessInput = new TextInputBuilder()
-        .setCustomId('guessInput')
-        .setLabel('Mot :')
-        .setStyle(TextInputStyle.Short)
-        .setMinLength(word.length)
-        .setMaxLength(word.length)
-        .setRequired(true)
-
-      const firstActionRow = new ActionRowBuilder<ModalActionRowComponentBuilder>().addComponents(guessInput)
-      modal.addComponents(firstActionRow)
+      const modal = createWordleModal(word)
 
       await interaction.showModal(modal)
 
@@ -157,7 +173,7 @@ export const command: Command = {
     const [name, id] = interaction.customId.split('|')
     if (name === 'guess') {
       const guess = interaction.fields.getField('guessInput').value.toLowerCase()
-      if (!wordExists(guess)) {
+      if (!words.includes(guess.toLowerCase())) {
         await interaction.reply({ content: 'Ce mot n\'existe pas dans le dictionnaire...', ephemeral: true })
         return
       }
@@ -222,4 +238,4 @@ export const command: Command = {
       await interaction.reply({ content: `Mauvaise réponse. (${tries.length}/${maxTry})`, ephemeral: true, files: [attachment], components: [actionRow] })
     }
   },
-}
+})

@@ -1,38 +1,59 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { Database, type SQLQueryBindings } from 'bun:sqlite'
 import chalk from 'chalk'
+import { notEmpty } from '@kaynooo/js-utils'
+import { loadFiles, loadImport } from '~/utils/loader'
+import type { DBDescribe, DBField, Identifiable } from '~/types/entity'
 
 export const db = new Database('./assets/db.sqlite')
 
-export function initDB() {
-  db.run(`
-CREATE TABLE IF NOT EXISTS server (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  guild_id TEXT NOT NULL
-);
+export function describeToTable<T extends Identifiable>(describe: DBDescribe<T>): string {
+  const lines: string[] = [`CREATE TABLE IF NOT EXISTS ${describe.table} (`, `  id INTEGER PRIMARY KEY AUTOINCREMENT,`]
 
-CREATE TABLE IF NOT EXISTS app_user (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  discord_id TEXT NOT NULL,
-  UNIQUE(discord_id)
-);
+  for (const [fieldName, field] of Object.entries<DBField>(describe.fields)) {
+    let line = `  ${fieldName} ${field.type.toUpperCase()}`
+    if (!field.nullable) {
+      line += ' NOT NULL'
+    }
+    if (field.unique) {
+      line += ' UNIQUE'
+    }
+    lines.push(`${line},`)
+  }
 
-CREATE TABLE IF NOT EXISTS word (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  day TEXT NOT NULL,
-  length INTEGER NOT NULL,
-  word TEXT NOT NULL,
-  UNIQUE(day, length)
-);
+  for (const [fieldName, field] of Object.entries<DBField>(describe.fields)) {
+    if (field.reference) {
+      const ref = typeof field.reference === 'string'
+        ? { table: field.reference, key: 'id' }
+        : field.reference
+      lines.push(`  FOREIGN KEY (${fieldName}) REFERENCES ${ref.table}(${ref.key}),`)
+    }
+  }
 
-CREATE TABLE IF NOT EXISTS user_try (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  word_id INTEGER NOT NULL,
-  guess TEXT NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES app_user(id),
-  FOREIGN KEY (word_id) REFERENCES word(id)
-);
-`)
+  if (describe.uniques) {
+    for (const uniqueGroup of describe.uniques) {
+      const uniqueFields = Array.isArray(uniqueGroup) ? uniqueGroup.join(', ') : uniqueGroup
+      lines.push(`  UNIQUE(${uniqueFields}),`)
+    }
+  }
+
+  // Remove the last comma
+  lines[lines.length - 1] = lines[lines.length - 1].slice(0, -1)
+  lines.push(');')
+
+  return lines.join('\n')
+}
+
+export async function initDB() {
+  const files = loadFiles('src/database/entity').filter(name => name !== 'index.ts')
+  const imports = (await Promise.all(files.map(name => loadImport<DBDescribe<any>>(name)))).filter(notEmpty)
+  console.log(chalk.cyan('[load]'), imports.length, 'database entities')
+  db.run(imports.map(describeToTable).join('\n'))
+  fs.writeFileSync(
+    path.resolve(process.cwd(), 'src/database/database.json'),
+    JSON.stringify(Object.fromEntries(imports.map(i => [i.table, i])), undefined, 2),
+  )
 }
 
 function log(type: string, query: string, params: SQLQueryBindings[]) {

@@ -2,6 +2,10 @@
   "name": "discord-wordle",
   "type": "module",
   "module": "index.ts",
+  "scripts": {
+    "start": "bun index.ts",
+    "lint:fix": "eslint . --fix"
+  },
   "peerDependencies": {
     "typescript": "^5.4.5"
   },

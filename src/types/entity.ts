@@ -1,21 +1,17 @@
-export type EntityBody<T extends Identifiable> = Omit<T, 'id'>
+export interface DBField {
+  type: 'bool' | 'int' | 'float' | 'text' | 'blob'
+  nullable?: boolean
+  primary?: boolean
+  unique?: boolean
+  reference?: string | { table: string, key: string }
+}
+
+export interface DBDescribe<T extends Identifiable> {
+  table: string
+  fields: Record<keyof Omit<T, 'id'>, DBField>
+  uniques?: (keyof T)[][]
+}
 
 export interface Identifiable {
   id: number
-}
-
-export interface DBWord extends Identifiable {
-  word: string
-  day: string
-  length: number
-}
-
-export interface DBUserTry extends Identifiable {
-  user_id: number
-  word_id: number
-  guess: string
-}
-
-export interface DBUser extends Identifiable {
-  discord_id: string
 }

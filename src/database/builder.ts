@@ -1,6 +1,6 @@
 import type { SQLQueryBindings } from 'bun:sqlite'
 import type { PartialRecord } from '@kaynooo/js-utils'
-import type { EntityBody, Identifiable } from '../types/entity'
+import type { Identifiable } from '~/types/entity'
 
 export interface QueryOptions<T extends object> {
   where?: PartialRecord<keyof T, string | number>
@@ -39,7 +39,7 @@ export function buildSelectQuery<T extends object>(tableName: string, options?: 
   return [query, params]
 }
 
-export function buildUpdateQuery<T extends Identifiable>(tableName: string, entity: Partial<EntityBody<T>>, options?: QueryOptions<T>): [string, SQLQueryBindings[]] {
+export function buildUpdateQuery<T extends Identifiable>(tableName: string, entity: Partial<Omit<T, 'id'>>, options?: QueryOptions<T>): [string, SQLQueryBindings[]] {
   const params: SQLQueryBindings[] = []
 
   const entries = Object.entries(entity).filter(([key]) => key !== 'id')

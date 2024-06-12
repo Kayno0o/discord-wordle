@@ -3,7 +3,7 @@ import path from 'node:path'
 import { REST, Routes } from 'discord.js'
 import _ from 'lodash'
 import chalk from 'chalk'
-import type { Command, RestCommand } from '../types/commands'
+import type { Command, RestCommand } from '~/types/commands'
 
 let lastCall = 0
 
@@ -18,12 +18,12 @@ export async function checkCommands(commands: Command[]) {
   if (_.isEqual(oldCommands, jsonCommands))
     return
 
-  await deployCommands(commands)
+  await deployCommands(jsonCommands)
 
   fs.writeFileSync(oldCommandsPath, JSON.stringify(jsonCommands))
 }
 
-export async function deployCommands(commands: Command[]) {
+export async function deployCommands(jsonCommands: any[]) {
   const { BOT_TOKEN: token, CLIENT_ID: clientId } = process.env
 
   if (!token || !clientId)
@@ -37,11 +37,11 @@ export async function deployCommands(commands: Command[]) {
   lastCall = Date.now()
 
   try {
-    console.log(chalk.cyan('[REST:post]'), commands.length, 'commands')
+    console.log(chalk.cyan('[REST:post]'), jsonCommands.length, 'commands')
 
     const data = await rest.put(
       Routes.applicationCommands(clientId),
-      { body: commands.map(c => c.command.toJSON()) },
+      { body: jsonCommands },
     ) as RestCommand[]
 
     console.log(chalk.green('[REST:success]'), 'reloaded', data.length, 'commands')

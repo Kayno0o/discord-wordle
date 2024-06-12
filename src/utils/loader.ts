@@ -3,15 +3,15 @@ import path from 'node:path'
 import type { ClientEvents } from 'discord.js'
 import chalk from 'chalk'
 import { notEmpty } from '@kaynooo/js-utils'
-import type { Command } from '../types/commands'
-import type { DiscordEvent } from '../types/events'
+import type { Command } from '~/types/commands'
+import type { DiscordEvent } from '~/types/events'
 
 function deleteModule(moduleName: string) {
   const solvedName = require.resolve(moduleName)
   delete require.cache[solvedName]
 }
 
-async function loadImport<T>(filepath: string, name: string): Promise<T | null> {
+export async function loadImport<T>(filepath: string, name?: string): Promise<T | null> {
   deleteModule(filepath)
 
   const obj = (await import(filepath))
@@ -19,7 +19,7 @@ async function loadImport<T>(filepath: string, name: string): Promise<T | null> 
   if (!obj)
     return null
 
-  if (name in obj)
+  if (name && name in obj)
     return obj[name] ?? null
 
   return obj.default ?? null

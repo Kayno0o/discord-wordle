@@ -4,7 +4,7 @@ import path from 'node:path'
 import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, type ModalActionRowComponentBuilder, ModalBuilder, type SlashCommandBuilder, TextInputBuilder, TextInputStyle } from 'discord.js'
 import { range } from 'lodash'
 import { formatDate, getRandomElement } from '@kaynooo/js-utils'
-import { type DBWord, UserRepository, UserTryRepository, WordRepository } from '~/database/entity'
+import { type DBWord, UserRepository, UserTryRepository, type WordDifficulty, WordRepository } from '~/database/entity'
 import { exec } from '~/utils/exec'
 import { button } from '~/utils/discord'
 import { Command } from '~/types/commands'
@@ -20,21 +20,19 @@ const dictionnariesDir = path.resolve(process.cwd(), 'assets/dictionnary')
 
 const words = fs.readFileSync(path.resolve(dictionnariesDir, 'merge.txt'), 'utf-8').split('\n')
 
-type Difficulty = 'easy' | 'normal' | 'hard'
-
-const dictionnaries: Record<Difficulty, string> = {
+const dictionnaries: Record<WordDifficulty, string> = {
   easy: 'u_liste_francais.txt',
   normal: 'u_pli07.txt',
   hard: 'u_ods6.txt',
 }
 
-const difficultyTranslations: Record<Difficulty, string> = {
+const difficultyTranslations: Record<WordDifficulty, string> = {
   easy: 'Facile',
   normal: 'Normale',
   hard: 'Difficile',
 }
 
-export function getWordle(length: number, difficulty: Difficulty = 'normal'): DBWord {
+export function getWordle(length: number, difficulty: WordDifficulty = 'normal'): DBWord {
   const uniqueWords = fs.readFileSync(path.resolve(dictionnariesDir, dictionnaries[difficulty]), 'utf-8').split('\n')
 
   const day = formatDate(new Date(), 'input', { utc: true })
@@ -83,7 +81,7 @@ export default new Command({
     .addStringOption(builder => builder
       .setName('difficulty')
       .setDescription('Difficulté')
-      .addChoices(Object.keys(dictionnaries).map((d: string) => ({ name: difficultyTranslations[d as Difficulty], value: d }))),
+      .addChoices(Object.keys(dictionnaries).map((d: string) => ({ name: difficultyTranslations[d as WordDifficulty], value: d }))),
     ),
   handle: async (_, interaction) => {
     const lengthOption = interaction.options.get('length')
@@ -92,7 +90,7 @@ export default new Command({
       return
     }
 
-    const difficulty: Difficulty = (interaction.options.get('difficulty')?.value as Difficulty | undefined) ?? 'normal'
+    const difficulty: WordDifficulty = (interaction.options.get('difficulty')?.value as WordDifficulty | undefined) ?? 'normal'
 
     const length = lengthOption.value
     const word = getWordle(length, difficulty)
@@ -113,7 +111,7 @@ export default new Command({
       .addComponents([guessButton, viewButton])
 
     await interaction.reply({
-      content: `${interaction.user.toString()} a démarré un mot en ${length} lettres !`,
+      content: `${interaction.user.toString()} a démarré un mot ${difficultyTranslations[word.difficulty]} de ${length} lettres !`,
       components: [actionRow],
     })
   },

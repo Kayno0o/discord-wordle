@@ -1,11 +1,13 @@
 import Repository from '~/database/repository'
 import type { DBDescribe, Identifiable } from '~/types/entity'
 
+export type WordDifficulty = 'easy' | 'normal' | 'hard'
+
 export interface DBWord extends Identifiable {
   word: string
   day: string
   length: number
-  difficulty: string
+  difficulty: WordDifficulty
 }
 
 export default <DBDescribe<DBWord>>{

@@ -29,9 +29,9 @@ var (
 	round        = width / 10
 	noLetter     = false
 	colorPalette = Palette{
-		"no":    {Text: "#d4c8bb", Rect: "#191818"},
-		"place": {Text: "#191818", Rect: "#d4c8bb"},
-		"ok":    {Text: "#d4c8bb", Rect: "#7b60a6"},
+		"no":    {Text: "#d4c8bb", Rect: "#292931"},
+		"place": {Text: "#191818", Rect: "#CB6A21"},
+		"ok":    {Text: "#191818", Rect: "#ADE34F"},
 	}
 )
 

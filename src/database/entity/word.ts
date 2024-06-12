@@ -28,7 +28,7 @@ export default <DBDescribe<DBWord>>{
       nullable: false,
     },
   },
-  uniques: [['day', 'length']],
+  uniques: [['day', 'length', 'difficulty']],
 }
 
 export const WordRepository = new Repository<DBWord>('word')

@@ -48,8 +48,10 @@ export function describeToTable<T extends Identifiable>(describe: DBDescribe<T>)
 export async function initDB() {
   const files = loadFiles('src/database/entity').filter(name => name !== 'index.ts')
   const imports = (await Promise.all(files.map(name => loadImport<DBDescribe<any>>(name)))).filter(notEmpty)
+
   console.log(chalk.cyan('[load]'), imports.length, 'database entities')
   db.run(imports.map(describeToTable).join('\n'))
+
   fs.writeFileSync(
     path.resolve(process.cwd(), 'src/database/database.json'),
     JSON.stringify(Object.fromEntries(imports.map(i => [i.table, i])), undefined, 2),
